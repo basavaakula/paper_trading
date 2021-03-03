@@ -14,24 +14,21 @@ from operator import mul, sub, add
 import requests
 import matplotlib.pyplot as plt
 from tkinter.filedialog import askopenfile
+from datetime import date
 from datetime import datetime
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,NavigationToolbar2Tk)
+
+import os.path
+from os import path
 
 
 font = {'family' : 'sans-serif',
         'weight' : 'normal',
         'size'   : 4}
 
-#plt.rcParams["font.family"] = "cursive"
 from matplotlib import rc
-#rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
-#rc('font',**{'family':'serif','serif':['Times']})
-#rc('text', usetex=False)
 rc('font', **font)
-
-#sys.path.append('/home/abasava/GIT/option_fetcher')
-#import OC_DATA
 
 class OC_DATA():
     def __init__(self)->None:
@@ -115,73 +112,109 @@ class paper_trade:
         window_height: int = self.sh_window.winfo_reqheight()
         position_right: int = int(self.sh_window.winfo_screenwidth() / 2 - window_width / 2)
         position_down: int = int(self.sh_window.winfo_screenheight() / 2 - window_height / 2)
-        self.sh_window.geometry("1200x12000+300+200")
-
-
-        top_frame: Frame = Frame(self.sh_window,width=1200, height=200)
-        top_frame.pack(anchor='nw',fill='both', expand=True, side=TOP)
+        self.sh_window.geometry("1000x800+300+100")
+        self.sh_window.grid_rowconfigure(0, weight=0)
+        self.sh_window.grid_columnconfigure(0, weight=1)
+        rh = self.sh_window.winfo_height()
+        rw = self.sh_window.winfo_width()
+        #self.sh_window.configure(width=1200,height=800)
+        #self.sh_window.grid_propagate(0)
+        
+        pdx = 5
+        pdy = 5
+        row_idx = 0
+        top_frame: Frame = Frame(self.sh_window,width=rw,height=.1*rh)
+        #top_frame.pack(anchor='nw',fill='both', expand=True, side=TOP)
+        top_frame.grid(row=0,column=0,sticky='nsew')
+        #top_frame.grid_rowconfigure(0, weight=0)
+        #top_frame.grid_columnconfigure(0, weight=0)
+        #top_frame.grid_propagate(1)
+        #top_frame.configure(height=500)
         
         var_stock: StringVar = StringVar()
         var_stock.set(" ")
-        lbl_stock: Label = Label(top_frame,text='Symbol',justify=LEFT,font=("TkDefaultFont", 10, "bold"))
-        lbl_stock.pack(anchor=N, expand=False, side=LEFT)
+        lbl_stock: Label = Label(top_frame,text='Symbol',justify=LEFT,font=("TkDefaultFont", 10,"bold"),width=10)
+        #lbl_stock.pack(anchor=N, expand=False, side=LEFT)
+        lbl_stock.grid(row=0,column=0,sticky='nw',padx=pdx,pady=pdy)
         self.combo_box_stock = Combobox(top_frame,width=10,textvariable=var_stock) 
-        self.combo_box_stock.pack(anchor=N, expand=False, side=LEFT)
+        #self.combo_box_stock.pack(anchor=N, expand=False, side=LEFT)
+        self.combo_box_stock.grid(row=0,column=1,sticky='nw',padx=pdx,pady=pdy)
         self.combo_box_stock.configure(state='readonly')
         self.combo_box_stock['values'] = self.indices
         self.combo_box_stock.bind('<<ComboboxSelected>>', self.set_expiry_date)
 
         date_var_stock: StringVar = StringVar()
         date_var_stock.set(" ")
-        lbl_exp_date_stock: Label = Label(top_frame,text='Expiry',justify=LEFT,font=("TkDefaultFont", 10, "bold"))
-        lbl_exp_date_stock.pack(anchor=N, expand=False, side=LEFT)
+        lbl_exp_date_stock: Label = Label(top_frame,text='Expiry',justify=LEFT,font=("TkDefaultFont", 10,"bold"),width=10)
+        #lbl_exp_date_stock.pack(anchor=N, expand=False, side=LEFT)
+        lbl_exp_date_stock.grid(row=1,column=0,sticky=N+S+W,padx=pdx,pady=pdy)
         self.date_combo_box_stock = Combobox(top_frame,width=10,textvariable=date_var_stock) 
-        self.date_combo_box_stock.pack(anchor=N, expand=False, side=LEFT)
+        #self.date_combo_box_stock.pack(anchor=N, expand=False, side=LEFT)
+        self.date_combo_box_stock.grid(row=1,column=1,sticky=N+S+W,padx=pdx,pady=pdy)
         self.date_combo_box_stock.configure(state='readonly')
         self.date_combo_box_stock.bind('<<ComboboxSelected>>', self.set_expiry_date)
-        
+        #
         var_lot_size: StringVar = StringVar()
         var_lot_size.set(" ")
         lbl_lot_size: Label = Label(top_frame,text='Qty',justify=LEFT,font=("TkDefaultFont", 10, "bold"))
-        lbl_lot_size.pack(anchor=N, expand=False, side=LEFT)
+        #lbl_lot_size.pack(anchor=N, expand=False, side=LEFT)
+        lbl_lot_size.grid(row=0,column=2,sticky=N+S+W,padx=pdx,pady=pdy)
         self.qty_combo_box = Combobox(top_frame,width=10,textvariable=var_lot_size) 
-        self.qty_combo_box.pack(anchor=N, expand=False, side=LEFT)
+        #self.qty_combo_box.pack(anchor=N, expand=False, side=LEFT)
         self.qty_combo_box.configure(state='readonly')
-        
-
-        self.start_button: Button = tk.Button(top_frame,text='*** Execute ***',command=self.main_recursive,width=15,bg='green',fg='white',font=("TkDefaultFont", 10, "bold"))
-        self.start_button.pack(anchor=N, expand=False, side=LEFT)
-        self.start_button.configure(state='disabled')
-        
-        self.import_button: Button = tk.Button(top_frame,text='*** IMPORT ***',command=self.import_iron_condor,width=15,bg='red',fg='white',font=("TkDefaultFont", 10, "bold"))
-        self.import_button.pack(anchor=N, expand=False, side=LEFT)
-        self.import_button.configure(state='disabled')
+        self.qty_combo_box.grid(row=0,column=3,sticky=N+S+W,padx=pdx,pady=pdy)
         
         var_vix: StringVar = StringVar()
         var_vix.set(" ")
         lbl_vix: Label = Label(top_frame,text='VIX',justify=LEFT,font=("TkDefaultFont", 10, "bold"))
-        lbl_vix.pack(anchor=N, expand=False, side=LEFT)
+        #lbl_vix.pack(anchor=N, expand=False, side=LEFT)
+        lbl_vix.grid(row=1,column=2,sticky=N+S+W,padx=pdx,pady=pdy)
         self.vix_combo_box = Combobox(top_frame,width=10,textvariable=var_vix) 
-        self.vix_combo_box.pack(anchor=N, expand=False, side=LEFT)
+        #self.vix_combo_box.pack(anchor=N, expand=False, side=LEFT)
+        self.vix_combo_box.grid(row=1,column=3,sticky=N+S+W,padx=pdx,pady=pdy)
         self.vix_combo_box.configure(state='readonly')
         self.vix_combo_box['values'] = list(map(lambda x: x/10.0, range(5, 100, 5)))
         self.vix_combo_box.bind('<<ComboboxSelected>>', self.set_VIX)
         
+
+        self.start_button: Button = tk.Button(top_frame,text='Trade',command=self.main_recursive,width=10,bg='green',fg='white',font=("TkDefaultFont", 10, "bold"))
+        #self.start_button.pack(anchor=N, expand=False, side=LEFT)
+        self.start_button.grid(row=0,column=4,sticky=N+S+W)#,padx=pdx,pady=pdy)
+        self.start_button.configure(state='disabled')
+        
+        self.import_button: Button = tk.Button(top_frame,text='Manual',command=self.import_iron_condor,width=10,bg='red',fg='white',font=("TkDefaultFont", 10, "bold"))
+        #self.import_button.pack(anchor=N, expand=False, side=LEFT)
+        self.import_button.grid(row=0,column=5,sticky=N+S+W)#,padx=pdx,pady=pdy)
+        self.import_button.configure(state='disabled')
+        
+        self.load_button: Button = tk.Button(top_frame,text='Load trade',command=self.load_file,width=10,bg='yellow',fg='black',font=("TkDefaultFont", 10, "bold"))
+        self.load_button.grid(row=1,column=4,sticky=N+S+W+E)
+        self.load_button.configure(state='normal')
+        
         self.lbl_nse_con_time: Label = Label(top_frame,text=' ',justify=LEFT,font=("TkDefaultFont", 10, "bold"))
-        self.lbl_nse_con_time.pack(anchor=N, expand=False, side=LEFT)
+        #self.lbl_nse_con_time.pack(anchor=N, expand=False, side=LEFT)
+        self.lbl_nse_con_time.grid(row=0,column=6,sticky=N+S+W+E)
         
-        bot_frame: Frame = Frame(self.sh_window,width=1200, height=300)
-        bot_frame.pack(anchor='nw', fill='both',expand=True, side=TOP)
+        bot_frame: Frame = Frame(self.sh_window,width=1200,height=.3*rh)
+        #bot_frame.pack(anchor='nw', fill='both',expand=True, side=TOP)
+        bot_frame.grid(row=1,column=0,sticky='nsew')
+        #bot_frame.grid_rowconfigure(0, weight=1)
+        #bot_frame.grid_columnconfigure(0, weight=1)
+        #bot_frame.grid_propagate(0)
         
-        self.plot_frame: Frame = Frame(self.sh_window,width=1200, height=700)
-        self.plot_frame.pack(anchor='nw', fill='both',expand=True, side=TOP)
+        self.plot_frame: Frame = Frame(self.sh_window,width=1200, height=.6*rh)
+        #self.plot_frame.pack(anchor='nw', fill='both',expand=True, side=TOP)
+        self.plot_frame.grid(row=2,column=0,sticky="nsew")
+        #self.plot_frame.grid_rowconfigure(0, weight=1)
+        #self.plot_frame.grid_columnconfigure(0, weight=1)
+        #self.plot_frame.grid_propagate(0)
         
-        fig = Figure(figsize = (5, 5), dpi = 200) 
+        fig = Figure(figsize = (2, 2), dpi = 200) 
         self.plot1 = fig.add_subplot(111)
         self.plot1.tick_params(axis='both', which='minor', labelsize=8)
 
         self.canvas = FigureCanvasTkAgg(fig,master = self.plot_frame)
-        self.canvas.get_tk_widget().pack() 
+        self.canvas.get_tk_widget().pack(anchor=N,fill='both',expand=True) 
         
         self.NB: Notebook = Notebook(bot_frame)
         self.NB.pack(anchor=N,fill="both", expand=True)
@@ -220,6 +253,29 @@ class paper_trade:
         self.imp_wd.destroy() 
         self.import_button.configure(state='disabled')
     
+    def save_current_data(self):
+        save_name = self.combo_box_stock.get()+'_'+self.date_combo_box_stock.get()+'_'+date.today().strftime("%b-%d-%Y")+'.csv'
+        if(not path.exists(save_name)):
+            df_export: pd.DataFrame = pd.DataFrame()
+            df_export['Strikes'] = self.df['Instrument']
+            df_export['Buy_price'] = self.df['My_price']
+            df_export['Qty'] = [(self.df['Qty'].tolist())[0]]*5
+            df_export.to_csv(save_name)
+
+    def load_file(self): 
+        file = askopenfile(mode ='r', filetypes =[('CSV files', '*.csv')]) 
+        self.df_loaded: pd.DataFrame = pd.read_csv(file.name)
+        self.imp_strikes = self.df_loaded['Strikes'].tolist()
+        self.imp_my_buy_price = self.df_loaded['Buy_price'].tolist()
+        qty = (self.df_loaded['Qty'].tolist())[0]
+        name_split = (os.path.basename(file.name)).split('_')
+        print(name_split)
+        self.combo_box_stock.set(name_split[0])
+        self.date_combo_box_stock.set(name_split[1])
+        self.qty_combo_box.set(qty)
+        self.nse_adapter.set_stock(self.combo_box_stock.get())
+        self.main_recursive()
+    
     def open_file(self): 
         file = askopenfile(mode ='r', filetypes =[('CSV files', '*.csv')]) 
         #if file is not None: 
@@ -242,6 +298,7 @@ class paper_trade:
         
         bot_frame: Frame = Frame(self.imp_wd,width=800, height=300)
         bot_frame.pack(anchor='nw', fill='both',expand=True, side=TOP)
+        bot_frame.pack_propagate(0)
         
         json_data = self.nse_adapter.get_oc_data()
         match_date = self.date_combo_box_stock.get()
@@ -343,6 +400,7 @@ class paper_trade:
         strr = "NSE response time (sec) : " + str(round(end-start,2)) + " ( " + str(self.nse_adapter.con_trial) + " hits)"
         self.lbl_nse_con_time.config(text=strr)
         match_date = self.date_combo_box_stock.get()
+        print(match_date)
         strike_prices: List[float] = [data['strikePrice'] for data in json_data['records']['data'] \
                                    if (str(data['expiryDate']).lower() == str(match_date).lower())]
         ce_values: List[dict] = [data['CE'] for data in json_data['records']['data'] \
@@ -494,6 +552,7 @@ class paper_trade:
         self.ttl3 = ttl3
         self.df = df
         self.draw_plot()
+        self.save_current_data()
         return df
         
     def draw_plot(self):
