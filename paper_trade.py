@@ -13,6 +13,22 @@ import time
 from operator import mul, sub, add
 import requests
 import matplotlib.pyplot as plt
+from tkinter.filedialog import askopenfile
+from datetime import datetime
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,NavigationToolbar2Tk)
+
+
+font = {'family' : 'sans-serif',
+        'weight' : 'normal',
+        'size'   : 4}
+
+#plt.rcParams["font.family"] = "cursive"
+from matplotlib import rc
+#rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+#rc('font',**{'family':'serif','serif':['Times']})
+#rc('text', usetex=False)
+rc('font', **font)
 
 #sys.path.append('/home/abasava/GIT/option_fetcher')
 #import OC_DATA
@@ -35,7 +51,10 @@ class OC_DATA():
     
     def connect_to_nse(self):
         self.con_trial = self.con_trial + 1
-        self.url = 'https://www.nseindia.com/api/option-chain-indices?symbol='+self.symb
+        if(self.symb=='NIFTY' or self.symb=='BANKNIFTY'):
+            self.url = 'https://www.nseindia.com/api/option-chain-indices?symbol='+self.symb
+        else:
+            self.url = 'https://www.nseindia.com/api/option-chain-equities?symbol='+self.symb
         try:
             self.session.close()
         except:
@@ -81,8 +100,12 @@ class paper_trade:
         self.my_buy_price = []
         self.strategies: List[String] = ['IRON CONDOR']
         self.sh_cols: List[List[String]] = [['Instrument','Qty','My_price','LTP','P&L']]
-        self.indices: List[str] = ['NIFTY','BANKNIFTY']
-        self.indices_lot: dict[str,str] = {'NIFTY':'75','BANKNIFTY':'25'}
+        self.indices: List[str] = ['NIFTY','BANKNIFTY','RELIANCE','ASHOKLEY','TATAMOTORS','SBIN']
+        self.indices_lot: dict[str,str]={'NIFTY':'75','BANKNIFTY':'25','RELIANCE':'505','ASHOKLEY':'9000','TATAMOTORS':'5700', \
+                                         'SBIN':'3000'}
+        self.symb_lot_dict: dict[str,List[str]] = {}
+        self.symb_lot_dict['SYMBOLS'] = ['NIFTY','BANKNIFTY','RELIANCE']
+        self.symb_lot_dict['LOT_SIZE'] = ['75','25']
         self.setup_main_window(window)
     
     def setup_main_window(self,window)->None:
@@ -92,11 +115,11 @@ class paper_trade:
         window_height: int = self.sh_window.winfo_reqheight()
         position_right: int = int(self.sh_window.winfo_screenwidth() / 2 - window_width / 2)
         position_down: int = int(self.sh_window.winfo_screenheight() / 2 - window_height / 2)
-        self.sh_window.geometry("1200x600+300+200")
+        self.sh_window.geometry("1200x12000+300+200")
 
 
-        top_frame: Frame = Frame(self.sh_window,width=1200, height=100)
-        top_frame.pack(anchor='nw',fill='x', expand=False, side=TOP)
+        top_frame: Frame = Frame(self.sh_window,width=1200, height=200)
+        top_frame.pack(anchor='nw',fill='both', expand=True, side=TOP)
         
         var_stock: StringVar = StringVar()
         var_stock.set(" ")
@@ -126,19 +149,39 @@ class paper_trade:
         self.qty_combo_box.configure(state='readonly')
         
 
-        self.start_button: Button = tk.Button(top_frame,text='*** Execute ***',command=self.main_recursive,width=20,bg='green',fg='white',font=("TkDefaultFont", 10, "bold"))
+        self.start_button: Button = tk.Button(top_frame,text='*** Execute ***',command=self.main_recursive,width=15,bg='green',fg='white',font=("TkDefaultFont", 10, "bold"))
         self.start_button.pack(anchor=N, expand=False, side=LEFT)
         self.start_button.configure(state='disabled')
         
-        self.import_button: Button = tk.Button(top_frame,text='*** IMPORT ***',command=self.import_iron_condor,width=20,bg='red',fg='white',font=("TkDefaultFont", 10, "bold"))
+        self.import_button: Button = tk.Button(top_frame,text='*** IMPORT ***',command=self.import_iron_condor,width=15,bg='red',fg='white',font=("TkDefaultFont", 10, "bold"))
         self.import_button.pack(anchor=N, expand=False, side=LEFT)
         self.import_button.configure(state='disabled')
+        
+        var_vix: StringVar = StringVar()
+        var_vix.set(" ")
+        lbl_vix: Label = Label(top_frame,text='VIX',justify=LEFT,font=("TkDefaultFont", 10, "bold"))
+        lbl_vix.pack(anchor=N, expand=False, side=LEFT)
+        self.vix_combo_box = Combobox(top_frame,width=10,textvariable=var_vix) 
+        self.vix_combo_box.pack(anchor=N, expand=False, side=LEFT)
+        self.vix_combo_box.configure(state='readonly')
+        self.vix_combo_box['values'] = list(map(lambda x: x/10.0, range(5, 100, 5)))
+        self.vix_combo_box.bind('<<ComboboxSelected>>', self.set_VIX)
         
         self.lbl_nse_con_time: Label = Label(top_frame,text=' ',justify=LEFT,font=("TkDefaultFont", 10, "bold"))
         self.lbl_nse_con_time.pack(anchor=N, expand=False, side=LEFT)
         
-        bot_frame: Frame = Frame(self.sh_window,width=1200, height=400)
+        bot_frame: Frame = Frame(self.sh_window,width=1200, height=300)
         bot_frame.pack(anchor='nw', fill='both',expand=True, side=TOP)
+        
+        self.plot_frame: Frame = Frame(self.sh_window,width=1200, height=700)
+        self.plot_frame.pack(anchor='nw', fill='both',expand=True, side=TOP)
+        
+        fig = Figure(figsize = (5, 5), dpi = 200) 
+        self.plot1 = fig.add_subplot(111)
+        self.plot1.tick_params(axis='both', which='minor', labelsize=8)
+
+        self.canvas = FigureCanvasTkAgg(fig,master = self.plot_frame)
+        self.canvas.get_tk_widget().pack() 
         
         self.NB: Notebook = Notebook(bot_frame)
         self.NB.pack(anchor=N,fill="both", expand=True)
@@ -168,11 +211,28 @@ class paper_trade:
                 break
             self.imp_strikes.append(float(i[1].get()))
             self.imp_my_buy_price.append(float(self.imp_tbox[i[0]].get('1.0',END)))
+        df_export: pd.DataFrame = pd.DataFrame()
+        df_export['Strikes'] = self.imp_strikes
+        df_export['Buy_price'] = self.imp_my_buy_price
+        save_name = self.combo_box_stock.get()+'-'+self.date_combo_box_stock.get()+'-'+datetime.now().strftime("%H:%M:%S")
+        df_export.to_csv(save_name+'.csv')
+        
         self.imp_wd.destroy() 
         self.import_button.configure(state='disabled')
+    
+    def open_file(self): 
+        file = askopenfile(mode ='r', filetypes =[('CSV files', '*.csv')]) 
+        #if file is not None: 
+        #    content = file.read() 
+        #    print(content) 
+        self.df_loaded: pd.DataFrame = pd.read_csv(file.name)
+        self.imp_strikes = self.df_loaded['Strikes'].tolist()
+        self.imp_my_buy_price = self.df_loaded['Buy_price'].tolist()
+        self.imp_wd.destroy() 
+        self.import_button.configure(state='disabled')
+    
     def import_iron_condor(self):
         self.imp_wd: Tk = Tk()
-        #self.imp_wd.mainloop()
         self.imp_wd.title('Paper trading')
         window_width: int = self.imp_wd.winfo_reqwidth()
         window_height: int = self.imp_wd.winfo_reqheight()
@@ -215,8 +275,13 @@ class paper_trade:
         
         ok_button: Button = tk.Button(bot_frame,text='OK!',command=self.export_iron_condor,width=20,bg='green',fg='white',font=("TkDefaultFont", 10, "bold"))
         ok_button.grid(row=row_idx,column=4,sticky=N+S+W)
+        
+        load_button: Button = tk.Button(bot_frame,text='Load',command=self.open_file,width=20,bg='green',fg='white',font=("TkDefaultFont", 10, "bold"))
+        load_button.grid(row=row_idx+1,column=4,sticky=N+S+W)
 
         
+    def set_VIX(self,event):
+        self.vix_percentage = float(self.vix_combo_box.get())
     def set_expiry_date(self,event):
         self.nse_adapter.set_stock(self.combo_box_stock.get())
         self.nse_adapter.get_expiry_dates()
@@ -287,6 +352,8 @@ class paper_trade:
          
         ce_data: pd.DataFrame = pd.DataFrame(ce_values)
         pe_data: pd.DataFrame = pd.DataFrame(pe_values)
+       
+        #print(list(ce_data.columns))
         
         pe_otm_data: pd.DataFrame = pd.DataFrame()
         ce_otm_data: pd.DataFrame = pd.DataFrame()
@@ -297,7 +364,7 @@ class paper_trade:
         
         
         curr_price = ce_data['underlyingValue'][0]
-        self.sh_window.title('Paper trading-->'+self.combo_box_stock.get()+'--'+self.date_combo_box_stock.get()+'--'+str(curr_price))
+        self.sh_window.title('Paper trading-->'+self.combo_box_stock.get()+' ('+str(curr_price)+' ) last updated @--'+datetime.now().strftime("%H:%M:%S"))
         if(self.first_run):
             diff = [abs(x-curr_price) for x in strike_prices]
             min_pos = diff.index(min(diff))
@@ -334,7 +401,7 @@ class paper_trade:
             iron_condor_strikes.append(strike_prices.index(self.imp_strikes[1]))
             pe_otm_data = pe_data.iloc[iron_condor_strikes] 
             buy_pe_idx = iron_condor_strikes[0]
-            sell_pe_idx = iron_condor_strikes[0]
+            sell_pe_idx = iron_condor_strikes[1]
             
             iron_condor_strikes.clear()
             iron_condor_strikes.append(strike_prices.index(self.imp_strikes[2]))
@@ -349,7 +416,6 @@ class paper_trade:
 
         
         pd_concat = pd.concat([pe_otm_data,ce_otm_data],axis=0)
-        #pd_concat = pd.concat([pe_otm_data,ce_otm_data],axis=0)
         sell_buy_signs = [1.,-1.,-1.,1.]
         lot_list = [float(self.qty_combo_box.get())]*4
         qty_list = list(map(mul,lot_list,sell_buy_signs))
@@ -357,40 +423,41 @@ class paper_trade:
         if(self.first_run and len(self.imp_strikes)==0):
             self.my_buy_price = pd_concat['lastPrice'].tolist()
         
+        net_points: List[float] = list(map(mul,sell_buy_signs,self.my_buy_price))
+        net_points = list(map(lambda x: x*-1,net_points))
         tt = list(map(sub,ltp_list,self.my_buy_price))
-        #df['Instrument'] = pd_concat['identifier'].tolist() 
         df['Instrument'] = pd_concat['strikePrice'].tolist() 
         df['Qty'] = qty_list
         df['My_price'] = list(map(float,self.my_buy_price))
         df['LTP'] = ltp_list
         df['P&L'] = list(map(mul,tt,qty_list))
         df['P&L'] =  df['P&L'].round(3)
-        total_row = {'Instrument':' ','Qty':' ','My_price':' ','LTP':'Total ','P&L':df['P&L'].sum()}
+        total_row = {'Instrument':' ','Qty':' ','My_price':str(round(sum(net_points),2)),'LTP':'Total ','P&L':df['P&L'].sum()}
         df = df.append(total_row,ignore_index=True)
         
         for i in range(len(strike_prices)):
-            if(i>buy_pe_idx):
+            if(i>=buy_pe_idx):
                 val = -self.my_buy_price[0]
             else:
-                val = -self.my_buy_price[0]+strike_diff[i]
+                val = abs(strike_prices[i]-strike_prices[buy_pe_idx])-self.my_buy_price[0]
             buy_pe_pl.append(val)
             
-            if(i>sell_pe_idx):
+            if(i>=sell_pe_idx):
                 val = self.my_buy_price[1]
             else:
-                val = self.my_buy_price[1]+strike_diff[i]
+                val = self.my_buy_price[1]-abs(strike_prices[i]-strike_prices[sell_pe_idx])
             sell_pe_pl.append(val)
             
             if(i<=sell_ce_idx):
                 val = self.my_buy_price[2]
             else:
-                val = self.my_buy_price[2]+strike_diff[i]
+                val = self.my_buy_price[2]-abs(strike_prices[i]-strike_prices[sell_ce_idx])
             sell_ce_pl.append(val)
             
             if(i<=buy_ce_idx):
                 val = -self.my_buy_price[3]
             else:
-                val = -self.my_buy_price[3]+strike_diff[i]
+                val = abs(strike_prices[i]-strike_prices[buy_ce_idx])-self.my_buy_price[3]
             buy_ce_pl.append(val)
         
         self.buy_pe_limit.append((pd_concat['strikePrice'].tolist())[0])
@@ -400,25 +467,51 @@ class paper_trade:
         self.market_price.append(curr_price)
         
         ttl1 = list(map(add,buy_pe_pl,sell_pe_pl)) 
-        ttl2 = list(map(add,sell_ce_pl,buy_ce_pl)) 
+        ttl2 = list(map(add,buy_ce_pl,sell_ce_pl)) 
         ttl3 = list(map(add,ttl1,ttl2)) 
+        ttl3 = list(map(lambda x:x*float(self.qty_combo_box.get()),ttl3))
         df_graph['sell_call'] = ttl3
-        #plt.plot(strike_prices,ttl3,'-')
-        
+
         #plt.clf()
-        ##x_data = range(len(self.buy_pe_limit))
-        ##plt.xlim([0,1.1*len(x_data)])
-        ##plt.plot(x_data,self.buy_pe_limit,'-g')
-        ##plt.plot(x_data,self.sell_pe_limit,'-r')
-        ##plt.plot(x_data,self.sell_ce_limit,'-r')
-        ##plt.plot(x_data,self.buy_ce_limit,'-g')
-        ##plt.plot(x_data,self.market_price,'--b')
-        #plt.plot(strike_prices,buy_ce_pl,'--b')
+        #plt.plot(strike_prices,ttl3,'-b')
+        #plt.axvline(x=(pd_concat['strikePrice'].tolist())[0],linestyle='--',color='g')
+        #plt.axvline(x=(pd_concat['strikePrice'].tolist())[1],linestyle='--',color='r')
+        #plt.axvline(x=(pd_concat['strikePrice'].tolist())[2],linestyle='--',color='r')
+        #plt.axvline(x=(pd_concat['strikePrice'].tolist())[3],linestyle='--',color='g')
+        #plt.plot(curr_price,df['P&L'].iloc[0:-1].sum(),'D')
+        #plt.text(1.05*min(strike_prices),.9*max(ttl3),'max_profit = '+str(round(max(ttl3),2)),color='green',fontsize='10')
+        #plt.text(1.05*min(strike_prices),.3*max(ttl3),'max_loss = '+str(round(min(ttl3),2)),color='red',fontsize='10')
+        #clr = 'red'
+        #if(df['P&L'].iloc[0:-1].sum()>0):
+        #    clr = 'green'
+        #plt.text(1.01*curr_price,1.01*df['P&L'].iloc[0:-1].sum(),str(df['P&L'].iloc[0:-1].sum()),color=clr,fontsize='8')
         #plt.pause(.0001)
         #plt.show(block = False)
+        #plt.title('Paper trading-->'+self.combo_box_stock.get()+' ('+str(curr_price)+' ) last updated @--'+datetime.now().strftime("%H:%M:%S"))
+        self.strike_prices = strike_prices
+        self.pd_concat = pd_concat
+        self.curr_price = curr_price
+        self.ttl3 = ttl3
+        self.df = df
+        self.draw_plot()
         return df
         
-
+    def draw_plot(self):
+        self.plot1.clear()
+        self.plot1.plot(self.strike_prices,self.ttl3,'-b',lw=.8)
+        self.plot1.axvline(x=(self.pd_concat['strikePrice'].tolist())[0],linestyle='--',color='g',lw=.8)
+        self.plot1.axvline(x=(self.pd_concat['strikePrice'].tolist())[1],linestyle='--',color='r',lw=.8)
+        self.plot1.axvline(x=(self.pd_concat['strikePrice'].tolist())[2],linestyle='--',color='r',lw=.8)
+        self.plot1.axvline(x=(self.pd_concat['strikePrice'].tolist())[3],linestyle='--',color='g',lw=.8)
+        self.plot1.plot(self.curr_price,self.df['P&L'].iloc[0:-1].sum(),'D',markersize=2)
+        self.plot1.text(1.01*min(self.strike_prices),.5*max(self.ttl3),'max_profit ='+str(round(max(self.ttl3),2)),color='green',fontsize='6')
+        self.plot1.text(1.1*min(self.strike_prices),.5*max(self.ttl3),'max_loss = '+str(round(min(self.ttl3),2)),color='red',fontsize='6')
+        clr = 'red'
+        if(self.df['P&L'].iloc[0:-1].sum()>0):
+            clr = 'green'
+        self.plot1.text(1.01*self.curr_price,1.01*self.df['P&L'].iloc[0:-1].sum(),str(self.df['P&L'].iloc[0:-1].sum()),color=clr,fontsize='4')
+        self.canvas.draw()
+        
 if __name__ == '__main__':
     master_window: Tk = Tk()
     paper_trade(master_window)
